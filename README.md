@@ -25,7 +25,7 @@ plugin编译好后，将so文件拷贝到gohangout运行目录，在配置文件
 ### 3. 配置
 ```bigquery
 outputs:
-    - /opt/jiujicloud/gohangout/zinc_output.so:
+    - /opt/gohangout/zinc_output.so:
         addresses:
           - http://10.1.250.157:4080
           - http://10.1.250.158:4080
@@ -36,7 +36,7 @@ outputs:
         batch_flush_interval: 5
         concurrency: 4
 ```
-1. `/opt/jiujicloud/gohangout/zinc_output.so`为plugin绝对路径；
+1. `/opt/gohangout/zinc_output.so`为plugin绝对路径；
 2. `addresses`为zinc的api接口路径，可以填写多个，目前负载均衡为简单随机；
 3. `index` zinc的索引规则；
 4. `username` zinc API接口鉴权用户名；

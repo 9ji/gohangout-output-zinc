@@ -1,2 +1,3 @@
-# gohangout-out-zinc
-gohangout zinc输出插件
+# gohangout-zinc-plugin
+
+gohangout zinc output plugin

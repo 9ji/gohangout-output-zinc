@@ -40,7 +40,7 @@ type ZincOutput struct {
 	// zinc密码
 	password string
 
-	client *resty.Client
+	clients []*resty.Client
 
 	waitGroup sync.WaitGroup
 	lock      sync.Mutex
@@ -51,7 +51,7 @@ const (
 { "index" : { "_index" : "%s" } }
 %s
 `
-	DefaultBatchSize          = 100
+	DefaultBatchSize          = 500
 	DefaultBatchFlushInterval = 10
 	DefaultBatchConcurrency   = 4
 )
@@ -114,18 +114,20 @@ func New(config map[interface{}]interface{}) interface{} {
 
 	output.batchRequests = make([]string, 0)
 	output.batchRequestsChan = make(chan []string, 3*concurrency)
-	output.client = resty.New()
-
+	output.clients = make([]*resty.Client, 0)
+	for i := 0; i < output.concurrency; i++ {
+		output.clients = append(output.clients, resty.New())
+	}
 	// 启动定时刷新Ticker，防止流量过低时，写入延迟太大的问题
 	ticker := time.NewTicker(time.Second * time.Duration(output.batchFlushInterval))
 	go func() {
 		for range ticker.C {
+			output.lock.Lock()
 			if len(output.batchRequests) > 0 {
-				output.lock.Lock()
 				output.batchRequestsChan <- output.batchRequests
 				output.batchRequests = make([]string, 0)
-				output.lock.Unlock()
 			}
+			output.lock.Unlock()
 		}
 	}()
 
@@ -133,19 +135,20 @@ func New(config map[interface{}]interface{}) interface{} {
 	output.waitGroup.Add(concurrency)
 	// 根据并发度，启动N个goroutine消费批量请求
 	for i := 0; i < output.concurrency; i++ {
-		go func() {
+		go func(goroutineIndex int) {
 			defer output.waitGroup.Done()
 			for {
 				select {
 				case requests := <-output.batchRequestsChan:
 					// 收到空请求，表示进程结束，直接退出
 					if len(requests) == 0 {
+						glog.Infof("goroutine %v exit", goroutineIndex)
 						return
 					}
-					output.processRequests(requests)
+					output.processRequests(goroutineIndex, requests)
 				}
 			}
-		}()
+		}(i)
 	}
 
 	glog.Infof("zinc output config, address: %v, index: %v, username: %v, password: %v, batch_size: %v, "+
@@ -170,8 +173,8 @@ func (z *ZincOutput) Emit(event map[string]interface{}) {
 	z.lock.Unlock()
 }
 
-func (z *ZincOutput) processRequests(requests []string) {
-	_, err := z.client.R().
+func (z *ZincOutput) processRequests(goroutineIndex int, requests []string) {
+	_, err := z.clients[goroutineIndex].R().
 		SetBasicAuth(z.username, z.password).
 		SetBody(strings.Join(requests, "\n")).
 		Post(fmt.Sprintf("%s/api/_bulk", strings.TrimRight(z.selectAddress(), "/")))

@@ -2,7 +2,7 @@
 该项目为gohangout的zinc output插件，用于将消息写入zinc搜索引擎。 
 
 gohangout: [https://github.com/childe/gohangout](https://github.com/childe/gohangout)  
-zinc: [https://github.com/childe/gohangout](https://github.com/childe/gohangout)  
+zinc: [https://github.com/prabhatsharma/zinc](https://github.com/prabhatsharma/zinc)  
 ## 使用方法
 ### 1. 编译
 
